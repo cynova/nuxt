@@ -220,7 +220,8 @@ export default defineNuxtModule<ComponentsOptions>({
         getComponents,
         mode,
         transform: typeof nuxt.options.components === 'object' && !Array.isArray(nuxt.options.components) ? nuxt.options.components.transform : undefined,
-        experimentalComponentIslands: nuxt.options.experimental.componentIslands
+        experimentalComponentIslands: nuxt.options.experimental.componentIslands,
+        rootDir: nuxt.options.rootDir
       }))
     })
     nuxt.hook('webpack:config', (configs) => {
@@ -242,7 +243,8 @@ export default defineNuxtModule<ComponentsOptions>({
           getComponents,
           mode,
           transform: typeof nuxt.options.components === 'object' && !Array.isArray(nuxt.options.components) ? nuxt.options.components.transform : undefined,
-          experimentalComponentIslands: nuxt.options.experimental.componentIslands
+          experimentalComponentIslands: nuxt.options.experimental.componentIslands,
+          rootDir: nuxt.options.rootDir
         }))
       })
     })
