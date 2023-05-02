@@ -2,9 +2,10 @@ import { getCurrentInstance, reactive, toRefs } from 'vue'
 import type { DefineComponent, defineComponent } from 'vue'
 import { useHead } from '@unhead/vue'
 import type { NuxtApp } from '../nuxt'
-import { useNuxtApp } from '../nuxt'
+import { callWithNuxt, useNuxtApp } from '../nuxt'
 import { useAsyncData } from './asyncData'
 import { useRoute } from './router'
+import { createError } from './error'
 
 export const NuxtComponentIndicator = '__nuxt_component'
 
@@ -14,7 +15,10 @@ async function runLegacyAsyncData (res: Record<string, any> | Promise<Record<str
   const vm = getCurrentInstance()!
   const { fetchKey } = vm.proxy!.$options
   const key = typeof fetchKey === 'function' ? fetchKey(() => '') : fetchKey || route.fullPath
-  const { data } = await useAsyncData(`options:asyncdata:${key}`, () => fn(nuxt))
+  const { data, error } = await useAsyncData(`options:asyncdata:${key}`, () => callWithNuxt(nuxt, fn, [nuxt]))
+  if (error.value) {
+    throw createError(error.value)
+  }
   if (data.value && typeof data.value === 'object') {
     Object.assign(await res, toRefs(reactive(data.value)))
   } else if (process.dev) {
@@ -38,7 +42,8 @@ export const defineNuxtComponent: typeof defineComponent =
       [NuxtComponentIndicator]: true,
       ...options,
       setup (props, ctx) {
-        const res = setup?.(props, ctx) || {}
+        const nuxtApp = useNuxtApp()
+        const res = setup ? Promise.resolve(callWithNuxt(nuxtApp, setup, [props, ctx])).then(r => r || {}) : {}
 
         const promises: Promise<any>[] = []
         if (options.asyncData) {

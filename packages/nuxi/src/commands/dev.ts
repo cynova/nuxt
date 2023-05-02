@@ -1,10 +1,10 @@
 import type { AddressInfo } from 'node:net'
 import type { RequestListener } from 'node:http'
-import { resolve, relative } from 'pathe'
+import { relative, resolve } from 'pathe'
 import chokidar from 'chokidar'
 import { debounce } from 'perfect-debounce'
 import type { Nuxt } from '@nuxt/schema'
-import consola from 'consola'
+import { consola } from 'consola'
 import { withTrailingSlash } from 'ufo'
 import { setupDotenv } from 'c12'
 import { showBanner, showVersions } from '../utils/banner'
@@ -12,7 +12,7 @@ import { writeTypes } from '../utils/prepare'
 import { loadKit } from '../utils/kit'
 import { importModule } from '../utils/esm'
 import { overrideEnv } from '../utils/env'
-import { writeNuxtManifest, loadNuxtManifest, cleanupNuxtDirs } from '../utils/nuxt'
+import { cleanupNuxtDirs, loadNuxtManifest, writeNuxtManifest } from '../utils/nuxt'
 import { defineNuxtCommand } from './index'
 
 export default defineNuxtCommand({
@@ -62,8 +62,8 @@ export default defineNuxtCommand({
       hostname: args.host || args.h || process.env.NUXT_HOST || config.devServer.host,
       https: (args.https !== false && (args.https || config.devServer.https))
         ? {
-            cert: args['ssl-cert'] || (config.devServer.https && config.devServer.https.cert) || undefined,
-            key: args['ssl-key'] || (config.devServer.https && config.devServer.https.key) || undefined
+            cert: args['ssl-cert'] || (typeof config.devServer.https !== 'boolean' && config.devServer.https.cert) || undefined,
+            key: args['ssl-key'] || (typeof config.devServer.https !== 'boolean' && config.devServer.https.key) || undefined
           }
         : false
     })
