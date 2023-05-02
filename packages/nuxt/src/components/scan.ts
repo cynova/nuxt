@@ -67,8 +67,7 @@ export async function scanComponents (dirs: ComponentsDir[], srcDir: string): Pr
       const global = /\.(global)(\.island)?$/.test(fileName) || dir.global
       const mode = island ? 'server' : (fileName.match(/(?<=\.)(client|server)(\.global|\.island)*$/)?.[1] || 'all') as 'client' | 'server' | 'all'
       fileName = fileName.replace(/(\.(client|server))?(\.global|\.island)*$/, '')
-
-      if (fileName.toLowerCase() === 'index') {
+      if (fileName.toLowerCase() === 'index' || fileName.toLowerCase() === basename(dirname(filePath)).toLowerCase()) {
         fileName = dir.pathPrefix === false ? basename(dirname(filePath)) : '' /* inherits from path */
       }
 
@@ -82,13 +81,8 @@ export async function scanComponents (dirs: ComponentsDir[], srcDir: string): Pr
 
       const componentNameParts: string[] = []
 
-      while (prefixParts.length &&
-        (prefixParts[0] || '').toLowerCase() !== (fileNameParts[0] || '').toLowerCase()
-      ) {
-        componentNameParts.push(prefixParts.shift()!)
-      }
 
-      const componentName = pascalCase(componentNameParts) + pascalCase(fileNameParts)
+      const componentName = pascalCase(prefixParts) + pascalCase(fileNameParts)
       const suffix = (mode !== 'all' ? `-${mode}` : '')
 
       if (resolvedNames.has(componentName + suffix) || resolvedNames.has(componentName)) {
