@@ -1,8 +1,8 @@
 import { createUnplugin } from 'unplugin'
 import { genDynamicImport, genImport } from 'knitwork'
 import MagicString from 'magic-string'
-import { pascalCase } from 'scule'
-import { resolve } from 'pathe'
+import { pascalCase, splitByCase } from 'scule'
+import { resolve, dirname, relative } from 'pathe'
 import type { Component, ComponentsOptions } from 'nuxt/schema'
 
 import { distDir } from '../dirs'
@@ -13,7 +13,8 @@ interface LoaderOptions {
   mode: 'server' | 'client'
   sourcemap?: boolean
   transform?: ComponentsOptions['transform']
-  experimentalComponentIslands?: boolean
+  experimentalComponentIslands?: boolean,
+  rootDir: string
 }
 
 export const loaderPlugin = createUnplugin((options: LoaderOptions) => {
@@ -33,7 +34,7 @@ export const loaderPlugin = createUnplugin((options: LoaderOptions) => {
       }
       return isVue(id, { type: ['template', 'script'] })
     },
-    transform (code) {
+    transform (code, id) {
       const components = options.getComponents()
 
       let num = 0
@@ -41,9 +42,18 @@ export const loaderPlugin = createUnplugin((options: LoaderOptions) => {
       const map = new Map<Component, string>()
       const s = new MagicString(code)
 
+      const { rootDir } = options
+      const re = /.*\/playground(\/.*?\/)/
+      const d = dirname(id)
+      const prefix = pascalCase(
+        id.includes(rootDir)
+          ? splitByCase(relative(rootDir, dirname(id)).replace(/^.+?\//, ''))
+          : ''
+      )
+
       // replace `_resolveComponent("...")` to direct import
       s.replace(/(?<=[ (])_?resolveComponent\(\s*["'](lazy-|Lazy)?([^'"]*?)["'][\s,]*[^)]*\)/g, (full: string, lazy: string, name: string) => {
-        const component = findComponent(components, name, options.mode)
+        const component = findComponent(components, prefix + name, options.mode) || findComponent(components, name, options.mode)
         if (component) {
           let identifier = map.get(component) || `__nuxt_component_${num++}`
           map.set(component, identifier)
