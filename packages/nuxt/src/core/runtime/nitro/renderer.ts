@@ -2,7 +2,7 @@ import { createRenderer, renderResourceHeaders } from 'vue-bundle-renderer/runti
 import type { RenderResponse } from 'nitropack'
 import type { Manifest } from 'vite'
 import type { H3Event } from 'h3'
-import { appendHeader, createError, getQuery, readBody, writeEarlyHints } from 'h3'
+import { appendResponseHeader, createError, getQuery, readBody, writeEarlyHints } from 'h3'
 import devalue from '@nuxt/devalue'
 import { stringify, uneval } from 'devalue'
 import destr from 'destr'
@@ -154,7 +154,8 @@ async function getIslandContext (event: H3Event): Promise<NuxtIslandContext> {
     ...context,
     id: hashId,
     name: componentName,
-    props: destr(context.props) || {}
+    props: destr(context.props) || {},
+    uid: destr(context.uid) || undefined
   }
 
   return ctx
@@ -199,7 +200,7 @@ export default defineRenderHandler(async (event): Promise<Partial<RenderResponse
   let url = ssrError?.url as string || islandContext?.url || event.node.req.url!
 
   // Whether we are rendering payload route
-  const isRenderingPayload = PAYLOAD_URL_RE.test(url)
+  const isRenderingPayload = PAYLOAD_URL_RE.test(url) && !islandContext
   if (isRenderingPayload) {
     url = url.substring(0, url.lastIndexOf('/')) || '/'
     event.node.req.url = url
@@ -229,7 +230,7 @@ export default defineRenderHandler(async (event): Promise<Partial<RenderResponse
   }
 
   // Whether we are prerendering route
-  const _PAYLOAD_EXTRACTION = process.env.prerender && process.env.NUXT_PAYLOAD_EXTRACTION && !ssrContext.noSSR
+  const _PAYLOAD_EXTRACTION = process.env.prerender && process.env.NUXT_PAYLOAD_EXTRACTION && !ssrContext.noSSR && !islandContext
   const payloadURL = _PAYLOAD_EXTRACTION ? joinURL(useRuntimeConfig().app.baseURL, url, process.env.NUXT_JSON_PAYLOADS ? '_payload.json' : '_payload.js') : undefined
   if (process.env.prerender) {
     ssrContext.payload.prerenderedAt = Date.now()
@@ -275,7 +276,7 @@ export default defineRenderHandler(async (event): Promise<Partial<RenderResponse
 
   if (_PAYLOAD_EXTRACTION) {
     // Hint nitro to prerender payload for this route
-    appendHeader(event, 'x-nitro-prerender', joinURL(url, process.env.NUXT_JSON_PAYLOADS ? '_payload.json' : '_payload.js'))
+    appendResponseHeader(event, 'x-nitro-prerender', joinURL(url, process.env.NUXT_JSON_PAYLOADS ? '_payload.json' : '_payload.js'))
     // Use same ssr context to generate payload for this route
     PAYLOAD_CACHE!.set(withoutTrailingSlash(url), renderPayloadResponse(ssrContext))
   }
@@ -284,7 +285,7 @@ export default defineRenderHandler(async (event): Promise<Partial<RenderResponse
   const renderedMeta = await ssrContext.renderMeta?.() ?? {}
 
   // Render inline styles
-  const inlinedStyles = process.env.NUXT_INLINE_STYLES
+  const inlinedStyles = (process.env.NUXT_INLINE_STYLES || Boolean(islandContext))
     ? await renderInlineStyles(ssrContext.modules ?? ssrContext._registeredComponents ?? [])
     : ''
 
@@ -309,7 +310,7 @@ export default defineRenderHandler(async (event): Promise<Partial<RenderResponse
       renderedMeta.bodyScriptsPrepend,
       ssrContext.teleports?.body
     ]),
-    body: [_rendered.html],
+    body: [process.env.NUXT_COMPONENT_ISLANDS ? replaceServerOnlyComponentsSlots(ssrContext, _rendered.html) : _rendered.html],
     bodyAppend: normalizeChunks([
       NO_SCRIPTS
         ? undefined
@@ -490,4 +491,20 @@ function splitPayload (ssrContext: NuxtSSRContext) {
 function getServerComponentHTML (body: string[]): string {
   const match = body[0].match(ROOT_NODE_REGEX)
   return match ? match[1] : body[0]
+}
+
+const SSR_TELEPORT_MARKER = /^uid=([^;]*);slot=(.*)$/
+function replaceServerOnlyComponentsSlots (ssrContext: NuxtSSRContext, html: string): string {
+  const { teleports, islandContext } = ssrContext
+  if (islandContext || !teleports) { return html }
+  for (const key in teleports) {
+    const match = key.match(SSR_TELEPORT_MARKER)
+    if (!match) { continue }
+    const [, uid, slot] = match
+    if (!uid || !slot) { continue }
+    html = html.replace(new RegExp(`<div nuxt-ssr-component-uid="${uid}"[^>]*>((?!nuxt-ssr-slot-name="${slot}"|nuxt-ssr-component-uid)[\\s\\S])*<div [^>]*nuxt-ssr-slot-name="${slot}"[^>]*>`), (full) => {
+      return full + teleports[key]
+    })
+  }
+  return html
 }

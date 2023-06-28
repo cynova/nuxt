@@ -9,6 +9,7 @@ import { componentNamesTemplate, componentsIslandsTemplate, componentsPluginTemp
 import { scanComponents } from './scan'
 import { loaderPlugin } from './loader'
 import { TreeShakeTemplatePlugin } from './tree-shake'
+import { islandsTransform } from './islandsTransform'
 import { createTransformPlugin } from './transform'
 
 const isPureObjectOrString = (val: any) => (!Array.isArray(val) && typeof val === 'object') || typeof val === 'string'
@@ -113,14 +114,14 @@ export default defineNuxtModule<ComponentsOptions>({
     })
 
     // components.d.ts
-    addTemplate({ ...componentsTypeTemplate, options: { getComponents } })
+    addTemplate({ ...componentsTypeTemplate })
     // components.plugin.mjs
-    addPluginTemplate({ ...componentsPluginTemplate, options: { getComponents } } as any)
+    addPluginTemplate({ ...componentsPluginTemplate } as any)
     // component-names.mjs
-    addTemplate({ ...componentNamesTemplate, options: { getComponents, mode: 'all' } })
+    addTemplate({ ...componentNamesTemplate, options: { mode: 'all' } })
     // components.islands.mjs
     if (nuxt.options.experimental.componentIslands) {
-      addTemplate({ ...componentsIslandsTemplate, filename: 'components.islands.mjs', options: { getComponents } })
+      addTemplate({ ...componentsIslandsTemplate, filename: 'components.islands.mjs' })
     } else {
       addTemplate({ filename: 'components.islands.mjs', getContents: () => 'export default {}' })
     }
@@ -158,7 +159,7 @@ export default defineNuxtModule<ComponentsOptions>({
     })
 
     // Scan components and add to plugin
-    nuxt.hook('app:templates', async () => {
+    nuxt.hook('app:templates', async (app) => {
       const newComponents = await scanComponents(componentDirs, nuxt.options.srcDir!)
       await nuxt.callHook('components:extend', newComponents)
       // add server placeholder for .client components server side. issue: #7085
@@ -173,6 +174,7 @@ export default defineNuxtModule<ComponentsOptions>({
         }
       }
       context.components = newComponents
+      app.components = newComponents
     })
 
     nuxt.hook('prepare:types', ({ references, tsConfig }) => {
@@ -217,8 +219,11 @@ export default defineNuxtModule<ComponentsOptions>({
         getComponents,
         mode,
         transform: typeof nuxt.options.components === 'object' && !Array.isArray(nuxt.options.components) ? nuxt.options.components.transform : undefined,
-        experimentalComponentIslands: nuxt.options.experimental.componentIslands,
-        rootDir: nuxt.options.rootDir
+        experimentalComponentIslands: nuxt.options.experimental.componentIslands
+      }))
+
+      config.plugins.push(islandsTransform.vite({
+        getComponents
       }))
     })
     nuxt.hook('webpack:config', (configs) => {
@@ -240,8 +245,11 @@ export default defineNuxtModule<ComponentsOptions>({
           getComponents,
           mode,
           transform: typeof nuxt.options.components === 'object' && !Array.isArray(nuxt.options.components) ? nuxt.options.components.transform : undefined,
-          experimentalComponentIslands: nuxt.options.experimental.componentIslands,
-          rootDir: nuxt.options.rootDir
+          experimentalComponentIslands: nuxt.options.experimental.componentIslands
+        }))
+
+        config.plugins.push(islandsTransform.webpack({
+          getComponents
         }))
       })
     })

@@ -15,17 +15,17 @@ export function useCustomFetch<T> (url: string, options: UseFetchOptions<T> = {}
       ? { Authorization: `Bearer ${userAuth.value}` }
       : {},
 
-    onResponse (__ctx) {
-      // return new myBusinessResponse(response._data)
+    onResponse (_ctx) {
+      // _ctx.response._data = new myBusinessResponse(_ctx.response._data)
     },
 
-    onResponseError (__ctx) {
-      // return new myBusinessError(error)
+    onResponseError (_ctx) {
+      // throw new myBusinessError()
     }
   }
 
   // for nice deep defaults, please use unjs/defu
-  const params = defu(defaults, options)
+  const params = defu(options, defaults)
 
   return useFetch(url, params)
 }

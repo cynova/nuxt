@@ -13,6 +13,27 @@ export default defineUntypedSchema({
      * @type {typeof import('@vue/compiler-core').CompilerOptions}
      */
     compilerOptions: {},
+
+    /**
+     * Include Vue compiler in runtime bundle.
+     */
+    runtimeCompiler: {
+      $resolve: async (val, get) => val ?? await get('experimental.runtimeVueCompiler') ?? false,
+    },
+
+    /**
+     * Vue Experimental: Enable reactive destructure for `defineProps`
+     * @see [Vue RFC#502](https://github.com/vuejs/rfcs/discussions/502)
+     * @type {boolean}
+     */
+    propsDestructure: false,
+
+    /**
+     * Vue Experimental: Enable macro `defineModel`
+     * @see [Vue RFC#503](https://github.com/vuejs/rfcs/discussions/503)
+     * @type {boolean}
+     */
+    defineModel: false
   },
 
   /**

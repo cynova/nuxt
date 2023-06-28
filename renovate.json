@@ -1,7 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "github>nuxt/renovate-config-nuxt"
+    "github>nuxt/renovate-config-nuxt",
+    ":pinDevDependencies"
   ],
   "baseBranches": [
     "main",
@@ -13,10 +14,11 @@
         "main"
       ],
       "ignoreDeps": [
+        "typescript",
+        "markdownlint-cli",
         "nuxt",
         "nuxt3",
-        "@nuxt/kit",
-        "parse5"
+        "@nuxt/kit"
       ]
     },
     {

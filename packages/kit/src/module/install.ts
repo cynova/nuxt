@@ -3,9 +3,9 @@ import type { Nuxt, NuxtModule } from '@nuxt/schema'
 import { dirname, isAbsolute } from 'pathe'
 import { isNuxt2 } from '../compatibility'
 import { useNuxt } from '../context'
-import { requireModule, resolveModule } from '../internal/cjs'
+import { requireModule } from '../internal/cjs'
 import { importModule } from '../internal/esm'
-import { resolveAlias } from '../resolve'
+import { resolveAlias, resolvePath } from '../resolve'
 
 /** Installs a module on a Nuxt instance. */
 export async function installModule (moduleToInstall: string | NuxtModule, _inlineOptions?: any, _nuxt?: Nuxt) {
@@ -53,12 +53,10 @@ async function normalizeModule (nuxtModule: string | NuxtModule, inlineOptions?:
 
   // Import if input is string
   if (typeof nuxtModule === 'string') {
-    const _src = resolveModule(resolveAlias(nuxtModule), { paths: nuxt.options.modulesDir })
-    // TODO: also check with type: 'module' in closest `package.json`
-    const isESM = _src.endsWith('.mjs')
-
+    const src = await resolvePath(nuxtModule)
     try {
-      nuxtModule = isESM ? await importModule(_src, nuxt.options.rootDir) : requireModule(_src)
+      // Prefer ESM resolution if possible
+      nuxtModule = await importModule(src, nuxt.options.modulesDir).catch(() => null) ?? requireModule(src, { paths: nuxt.options.modulesDir })
     } catch (error: unknown) {
       console.error(`Error while requiring module \`${nuxtModule}\`: ${error}`)
       throw error

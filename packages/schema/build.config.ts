@@ -16,6 +16,7 @@ export default defineBuildConfig({
       }
     },
     'src/index',
+    'src/builder-env'
   ],
   externals: [
     // Type imports
@@ -42,6 +43,7 @@ export default defineBuildConfig({
     'postcss',
     'consola',
     'ignore',
+    'vue-loader',
     // Implicit
     '@vue/compiler-core',
     '@vue/shared',
